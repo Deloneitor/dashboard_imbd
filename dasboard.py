@@ -5,6 +5,7 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
+import numpy as np
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -101,7 +102,6 @@ st.subheader("📽️ Indicadores Visuales por Clasificación, Directores y Estr
 
 kpi2_tabs = st.tabs(["🎫 Clasificación", "🎬 Directores Top", "⭐ Estrellas Frecuentes"])
 
-# Clasificación
 with kpi2_tabs[0]:
     if "Certificate" in df.columns:
         cert_data = df["Certificate"].dropna().value_counts().reset_index()
@@ -110,10 +110,7 @@ with kpi2_tabs[0]:
                           color="Clasificación", title="Películas por Clasificación",
                           color_discrete_sequence=px.colors.qualitative.Plotly)
         st.plotly_chart(fig_cert, use_container_width=True)
-    else:
-        st.warning("No se encontró la columna 'Certificate'.")
 
-# Directores
 with kpi2_tabs[1]:
     if "Director" in df.columns:
         top_directors = df["Director"].dropna().value_counts().head(10).reset_index()
@@ -123,18 +120,13 @@ with kpi2_tabs[1]:
                          color="Cantidad", color_continuous_scale="Blues")
         fig_dir.update_layout(yaxis={'categoryorder': 'total ascending'})
         st.plotly_chart(fig_dir, use_container_width=True)
-    else:
-        st.warning("No se encontró la columna 'Director'.")
 
-# Estrellas
 with kpi2_tabs[2]:
     star_cols = ["Star1", "Star2", "Star3", "Star4"]
     stars = pd.Series(dtype=str)
-
     for col in star_cols:
         if col in df.columns:
             stars = pd.concat([stars, df[col].dropna()])
-
     top_stars = stars.value_counts().head(10).reset_index()
     top_stars.columns = ["Estrella", "Apariciones"]
     fig_star = px.bar(top_stars, x="Apariciones", y="Estrella",
@@ -147,18 +139,45 @@ with kpi2_tabs[2]:
 # EVOLUCIÓN DE PUNTUACIONES
 # ===============================
 st.subheader("📈 Evolución de Calificaciones por Año")
-
 ratings_por_anio = df.groupby("Year")["Rating"].mean().reset_index()
-
 fig1 = px.line(ratings_por_anio, x="Year", y="Rating", markers=True,
                title="Evolución de Puntuaciones Promedio por Año")
 st.plotly_chart(fig1, use_container_width=True)
 
 # ===============================
+# REGRESIÓN LINEAL: RATING VS AÑO
+# ===============================
+st.subheader("📉 Tendencia Lineal de Calificaciones")
+fig_regresion = px.scatter(ratings_por_anio, x="Year", y="Rating", trendline="ols",
+                           title="Regresión Lineal: Año vs Calificación Promedio")
+st.plotly_chart(fig_regresion, use_container_width=True)
+
+# ===============================
+# MAPA DE CALOR DE CORRELACIÓN
+# ===============================
+st.subheader("🔥 Mapa de Calor de Correlación")
+numericas = df[["Year", "Rating", "Meta_score", "No_of_Votes"]].dropna()
+corr_matrix = numericas.corr()
+fig_heatmap = px.imshow(corr_matrix, text_auto=True, color_continuous_scale="RdBu_r",
+                        title="Correlación entre Variables Numéricas")
+st.plotly_chart(fig_heatmap, use_container_width=True)
+
+# ===============================
+# MAPA GEOGRÁFICO (SIMULADO)
+# ===============================
+st.subheader("🌍 Mapa Geográfico de Películas (Simulado)")
+df["Country"] = np.random.choice(["USA", "UK", "France", "India", "Germany", "Canada", "Australia", "Japan"], size=len(df))
+map_data = df["Country"].value_counts().reset_index()
+map_data.columns = ["Country", "Count"]
+fig_geo = px.choropleth(map_data, locations="Country", locationmode="country names",
+                        color="Count", color_continuous_scale="Viridis",
+                        title="Distribución Ficticia de Películas por País")
+st.plotly_chart(fig_geo, use_container_width=True)
+
+# ===============================
 # HISTOGRAMA DE PELÍCULAS POR AÑO
 # ===============================
 st.subheader("🎞 Distribución de Películas por Año")
-
 fig2 = px.histogram(df, x="Year", nbins=50,
                     title="Cantidad de Películas por Año")
 st.plotly_chart(fig2, use_container_width=True)
@@ -167,7 +186,6 @@ st.plotly_chart(fig2, use_container_width=True)
 # BOXPLOT DE CALIFICACIONES POR GÉNERO
 # ===============================
 st.subheader("🎭 Distribución de Calificaciones por Género")
-
 fig3 = px.box(df, x="Main_Genre", y="Rating", points="all",
               title="Calificaciones por Género")
 fig3.update_layout(xaxis_tickangle=-45)
@@ -177,10 +195,8 @@ st.plotly_chart(fig3, use_container_width=True)
 # PELÍCULAS POR GÉNERO (GRÁFICO DONA)
 # ===============================
 st.subheader("🍿 Películas por Género Principal")
-
 genero_counts = df['Main_Genre'].value_counts().reset_index()
 genero_counts.columns = ['Género', 'Cantidad']
-
 fig4 = px.pie(genero_counts, values='Cantidad', names='Género', hole=0.4,
               title="Distribución de Películas por Género Principal")
 st.plotly_chart(fig4, use_container_width=True)
@@ -189,7 +205,6 @@ st.plotly_chart(fig4, use_container_width=True)
 # TOP 10 PELÍCULAS MEJOR CALIFICADAS
 # ===============================
 st.subheader("🏆 Top 10 Películas Mejor Calificadas")
-
 top10 = df.sort_values("Rating", ascending=False).head(10)[["Title", "Year", "Rating"]]
 st.table(top10.reset_index(drop=True))
 

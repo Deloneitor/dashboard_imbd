@@ -18,17 +18,28 @@ st.title("🎬 Dashboard de Puntuaciones de Películas")
 @st.cache_data
 def cargar_datos():
     df = pd.read_csv("imdb_movies.csv")
+    
+    # Filtrar columnas necesarias
+    columnas_requeridas = ["Title", "Year", "Rating", "Genre"]
+    df = df[[col for col in columnas_requeridas if col in df.columns]]
+
+    # Limpiar datos
     df.dropna(subset=["Year", "Rating"], inplace=True)
-    df["Year"] = df["Year"].astype(int)
+    df["Year"] = pd.to_numeric(df["Year"], errors="coerce").astype("Int64")
+    df["Rating"] = pd.to_numeric(df["Rating"], errors="coerce")
+    df.dropna(subset=["Year", "Rating"], inplace=True)
     df = df[df["Year"] > 1900]  # Filtrar valores atípicos
+
+    # Procesar géneros
     df["Main_Genre"] = df["Genre"].apply(lambda x: x.split(",")[0] if isinstance(x, str) else "Desconocido")
-    df["Genre_Count"] = df["Genre"].apply(lambda x: len(x.split(',')) if isinstance(x, str) else 0)
+    df["Genre_Count"] = df["Genre"].apply(lambda x: len(x.split(",")) if isinstance(x, str) else 0)
+
     return df
 
 df = cargar_datos()
 
 # ===============================
-# KPIs (Ahora 9)
+# KPIs (9 indicadores)
 # ===============================
 st.subheader("📊 Indicadores Clave")
 
@@ -40,8 +51,8 @@ kpi3.metric("Año con Más Películas", df['Year'].value_counts().idxmax())
 
 # Segunda fila de KPIs
 kpi4, kpi5, kpi6 = st.columns(3)
-kpi4.metric("Película Más Antigua", df["Year"].min())
-kpi5.metric("Película Más Reciente", df["Year"].max())
+kpi4.metric("Película Más Antigua", int(df["Year"].min()))
+kpi5.metric("Película Más Reciente", int(df["Year"].max()))
 kpi6.metric("Calificación Máxima", f"{df['Rating'].max():.1f}")
 
 # Tercera fila de KPIs

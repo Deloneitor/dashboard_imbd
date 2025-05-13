@@ -4,7 +4,6 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -21,13 +20,9 @@ st.title("🎬 Dashboard de Puntuaciones de Películas")
 def cargar_datos():
     df = pd.read_csv("imdb_movies.csv")
 
-    columnas_requeridas = ["Title", "Year", "Rating", "Genre"]
-    df = df[[col for col in columnas_requeridas if col in df.columns]]
-
-    df.dropna(subset=["Year", "Rating"], inplace=True)
+    df = df[df["Year"].notna() & df["Rating"].notna()]
     df["Year"] = pd.to_numeric(df["Year"], errors="coerce").astype("Int64")
     df["Rating"] = pd.to_numeric(df["Rating"], errors="coerce")
-    df.dropna(subset=["Year", "Rating"], inplace=True)
     df = df[df["Year"] > 1900]
 
     df["Main_Genre"] = df["Genre"].apply(lambda x: x.split(",")[0] if isinstance(x, str) else "Desconocido")
@@ -38,71 +33,114 @@ def cargar_datos():
 df = cargar_datos()
 
 # ===============================
-# KPIs VISUALES
+# KPIs MÁS GRÁFICOS Y VISUALES
 # ===============================
-st.subheader("📊 Indicadores Clave con Visualización")
+st.subheader("📊 Indicadores Clave Visuales")
 
-pelis_max_generos = df.loc[df['Genre_Count'].idxmax()]
+kpi_tabs = st.tabs(["🎬 Total Películas", "⭐ Promedio Rating", "📅 Año con Más Películas",
+                    "🎞️ Más Antigua", "📆 Más Reciente", "🏆 Rating Máximo",
+                    "💔 Rating Mínimo", "🎭 Géneros Únicos", "🎬 Máx. Géneros por Película"])
 
-fig_kpis = make_subplots(rows=3, cols=3, specs=[[{"type": "indicator"}]*3]*3)
+with kpi_tabs[0]:
+    fig = px.bar(x=["Películas"], y=[df.shape[0]],
+                 title="Total de Películas", text=[df.shape[0]],
+                 color_discrete_sequence=["#4C78A8"])
+    fig.update_layout(yaxis_title="Cantidad", xaxis_title=None, showlegend=False)
+    st.plotly_chart(fig, use_container_width=True)
 
-fig_kpis.add_trace(go.Indicator(
-    mode="number",
-    value=df.shape[0],
-    title={"text": "🎬 Total de Películas"},
-), row=1, col=1)
+with kpi_tabs[1]:
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=round(df["Rating"].mean(), 2),
+        title={"text": "Promedio de Rating"},
+        gauge={"axis": {"range": [0, 10]},
+               "bar": {"color": "gold"},
+               "steps": [{"range": [0, 5], "color": "#ffe6e6"},
+                         {"range": [5, 7], "color": "#ffffcc"},
+                         {"range": [7, 10], "color": "#e6ffe6"}]}
+    ))
+    st.plotly_chart(fig, use_container_width=True)
 
-fig_kpis.add_trace(go.Indicator(
-    mode="gauge+number",
-    value=df["Rating"].mean(),
-    title={"text": "⭐ Calificación Promedio"},
-    gauge={"axis": {"range": [0, 10]}, "bar": {"color": "gold"}}
-), row=1, col=2)
+with kpi_tabs[2]:
+    top_year = df["Year"].value_counts().idxmax()
+    count = df["Year"].value_counts().max()
+    fig = px.bar(x=[top_year], y=[count], text=[count],
+                 title="Año con más Películas", labels={"x": "Año", "y": "Cantidad"},
+                 color_discrete_sequence=["#F58518"])
+    st.plotly_chart(fig, use_container_width=True)
 
-fig_kpis.add_trace(go.Indicator(
-    mode="number",
-    value=df["Year"].value_counts().idxmax(),
-    title={"text": "📅 Año más Productivo"}
-), row=1, col=3)
+with kpi_tabs[3]:
+    oldest = int(df["Year"].min())
+    st.markdown(f"## 🎞️ Año más antiguo: `{oldest}`")
 
-fig_kpis.add_trace(go.Indicator(
-    mode="number",
-    value=int(df["Year"].min()),
-    title={"text": "🎞️ Película Más Antigua"}
-), row=2, col=1)
+with kpi_tabs[4]:
+    latest = int(df["Year"].max())
+    st.markdown(f"## 📆 Año más reciente: `{latest}`")
 
-fig_kpis.add_trace(go.Indicator(
-    mode="number",
-    value=int(df["Year"].max()),
-    title={"text": "📆 Película Más Reciente"}
-), row=2, col=2)
+with kpi_tabs[5]:
+    max_rating = df["Rating"].max()
+    st.markdown(f"## 🏆 Calificación más alta: `{max_rating}`")
 
-fig_kpis.add_trace(go.Indicator(
-    mode="number",
-    value=df["Rating"].max(),
-    title={"text": "🏆 Calificación Máxima"}
-), row=2, col=3)
+with kpi_tabs[6]:
+    min_rating = df["Rating"].min()
+    st.markdown(f"## 💔 Calificación más baja: `{min_rating}`")
 
-fig_kpis.add_trace(go.Indicator(
-    mode="number",
-    value=df["Rating"].min(),
-    title={"text": "💔 Calificación Mínima"}
-), row=3, col=1)
+with kpi_tabs[7]:
+    num_genres = df['Main_Genre'].nunique()
+    st.markdown(f"## 🎭 Géneros únicos: `{num_genres}`")
 
-fig_kpis.add_trace(go.Indicator(
-    mode="number",
-    value=df['Main_Genre'].nunique(),
-    title={"text": "🎭 Géneros Únicos"}
-), row=3, col=2)
+with kpi_tabs[8]:
+    max_genres = df["Genre_Count"].max()
+    st.markdown(f"## 🎬 Máx. géneros por película: `{max_genres}`")
 
-fig_kpis.add_trace(go.Indicator(
-    mode="number",
-    value=pelis_max_generos['Genre_Count'],
-    title={"text": "🎬 Máx. Géneros por Película"}
-), row=3, col=3)
+# ===============================
+# NUEVOS KPIs: CLASIFICACIÓN, DIRECTORES, ESTRELLAS
+# ===============================
+st.subheader("📽️ Indicadores Visuales por Clasificación, Directores y Estrellas")
 
-fig_kpis.update_layout(height=700, showlegend=False)
-st.plotly_chart(fig_kpis, use_container_width=True)
+kpi2_tabs = st.tabs(["🎫 Clasificación", "🎬 Directores Top", "⭐ Estrellas Frecuentes"])
+
+# Clasificación
+with kpi2_tabs[0]:
+    if "Certificate" in df.columns:
+        cert_data = df["Certificate"].dropna().value_counts().reset_index()
+        cert_data.columns = ["Clasificación", "Cantidad"]
+        fig_cert = px.bar(cert_data, x="Clasificación", y="Cantidad",
+                          color="Clasificación", title="Películas por Clasificación",
+                          color_discrete_sequence=px.colors.qualitative.Plotly)
+        st.plotly_chart(fig_cert, use_container_width=True)
+    else:
+        st.warning("No se encontró la columna 'Certificate'.")
+
+# Directores
+with kpi2_tabs[1]:
+    if "Director" in df.columns:
+        top_directors = df["Director"].dropna().value_counts().head(10).reset_index()
+        top_directors.columns = ["Director", "Cantidad"]
+        fig_dir = px.bar(top_directors, x="Cantidad", y="Director",
+                         orientation='h', title="Top 10 Directores con Más Películas",
+                         color="Cantidad", color_continuous_scale="Blues")
+        fig_dir.update_layout(yaxis={'categoryorder': 'total ascending'})
+        st.plotly_chart(fig_dir, use_container_width=True)
+    else:
+        st.warning("No se encontró la columna 'Director'.")
+
+# Estrellas
+with kpi2_tabs[2]:
+    star_cols = ["Star1", "Star2", "Star3", "Star4"]
+    stars = pd.Series(dtype=str)
+
+    for col in star_cols:
+        if col in df.columns:
+            stars = pd.concat([stars, df[col].dropna()])
+
+    top_stars = stars.value_counts().head(10).reset_index()
+    top_stars.columns = ["Estrella", "Apariciones"]
+    fig_star = px.bar(top_stars, x="Apariciones", y="Estrella",
+                      orientation='h', title="⭐ Top 10 Estrellas más Frecuentes",
+                      color="Apariciones", color_continuous_scale="Oranges")
+    fig_star.update_layout(yaxis={'categoryorder': 'total ascending'})
+    st.plotly_chart(fig_star, use_container_width=True)
 
 # ===============================
 # EVOLUCIÓN DE PUNTUACIONES

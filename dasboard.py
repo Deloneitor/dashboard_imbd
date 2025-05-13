@@ -21,19 +21,35 @@ def cargar_datos():
     df.dropna(subset=["Year", "Rating"], inplace=True)
     df["Year"] = df["Year"].astype(int)
     df = df[df["Year"] > 1900]  # Filtrar valores atípicos
+    df["Main_Genre"] = df["Genre"].apply(lambda x: x.split(",")[0] if isinstance(x, str) else "Desconocido")
+    df["Genre_Count"] = df["Genre"].apply(lambda x: len(x.split(',')) if isinstance(x, str) else 0)
     return df
 
 df = cargar_datos()
 
 # ===============================
-# KPIs
+# KPIs (Ahora 9)
 # ===============================
 st.subheader("📊 Indicadores Clave")
 
+# Primera fila de KPIs
 kpi1, kpi2, kpi3 = st.columns(3)
 kpi1.metric("Total de Películas", df.shape[0])
 kpi2.metric("Calificación Promedio", f"{df['Rating'].mean():.2f}")
 kpi3.metric("Año con Más Películas", df['Year'].value_counts().idxmax())
+
+# Segunda fila de KPIs
+kpi4, kpi5, kpi6 = st.columns(3)
+kpi4.metric("Película Más Antigua", df["Year"].min())
+kpi5.metric("Película Más Reciente", df["Year"].max())
+kpi6.metric("Calificación Máxima", f"{df['Rating'].max():.1f}")
+
+# Tercera fila de KPIs
+kpi7, kpi8, kpi9 = st.columns(3)
+kpi7.metric("Calificación Mínima", f"{df['Rating'].min():.1f}")
+kpi8.metric("Géneros Únicos", df['Main_Genre'].nunique())
+pelis_max_generos = df.loc[df['Genre_Count'].idxmax()]
+kpi9.metric("Máx. Géneros en una Película", pelis_max_generos['Genre_Count'])
 
 # ===============================
 # EVOLUCIÓN DE PUNTUACIONES
@@ -59,8 +75,6 @@ st.plotly_chart(fig2, use_container_width=True)
 # BOXPLOT DE CALIFICACIONES POR GÉNERO
 # ===============================
 st.subheader("🎭 Distribución de Calificaciones por Género")
-
-df["Main_Genre"] = df["Genre"].apply(lambda x: x.split(",")[0] if isinstance(x, str) else "Desconocido")
 
 fig3 = px.box(df, x="Main_Genre", y="Rating", points="all",
               title="Calificaciones por Género")
